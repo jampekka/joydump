@@ -27,7 +27,6 @@ function propdump(o) {
 		return o;
 	}
 	let d = {};
-	d["foo"] = "bar";
 	for(const prop in o) {
 		d[prop] = propdump(o[prop]);
 	}
