@@ -1,106 +1,136 @@
+
+{Dexie} = require 'dexie'
+$ = require 'jquery'
 flatobj = require('./flatobj.coffee')
+JSZip = require 'jszip'
+{saveAs} = require 'file-saver'
+console.log saveAs
 
+gamepads = []
+gamepads_seen = 0
+session_base = "joydump-"
+session_id = session_base + (new Date()).toISOString()
 
-```
+_is_object = (obj) -> obj == Object obj
 
+cloneProps = (o) ->
+	if not _is_object o
+		return o
+	d = {}
+	for prop of o
+		d[prop] = cloneProps(o[prop])
+	return d
 
-function propdump(o) {
-	if(typeof o !== "object") {
-		return o;
-	}
-	let d = {};
-	for(const prop in o) {
-		d[prop] = propdump(o[prop]);
-	}
-	return d;
-}
-
-let controller_elements = {};
-let prev_events = {};
-
-let log = [];
-
-function dump_joys() {
-	for(let pad of navigator.getGamepads()) {
-		dump_joy(pad);
-	}
-}
-
-/*window.addEventListener(
-	"gamepadconnected",
-	(e) => {
-		console.log("Here!");
-		console.log(JSON.stringify(propdump(e.gamepad)));
-	}
-);*/
-
-```
-
-loggers = {}
-
-dump_joy = (pad) ->
-	return if prev_events[pad.index] == pad.timestamp
+new_gamepad = (e) ->
+	pad = e.gamepad
+	#num = gamepads_seen; gamepads_seen += 1
+	#dbid = "joydump/#{session_id}/#{num}"
+	#db = new Dexie dbid
+	#db.version(1).stores events: "++row"
+	gamepads.push
+		pad_number: gamepads.length
+		pad: pad
+		prev_timestamp: undefined
 	
+	console.log "Joystick connected", pad
+
+dump_gamepads = (database) ->
 	unix_time = Date.now()/1000
-	logger = loggers[pad.index]
-	if not logger
-		handle = await logdir.getFileHandle "#{pad.index}-#{pad.id}.jsons", create: true
-		logger = await handle.createWritable keepExistingData: true
-		loggers[pad.index] = logger
+	session_time = performance.now()
+	for padinfo in gamepads
+		pad = padinfo.pad
+		continue if not pad.connected
+		continue if pad.timestamp == padinfo.timestamp
+		padinfo.timestamp = pad.timestamp
 
-	prev_events[pad.index] = pad.timestamp
-	d = propdump(pad)
-	d.unix_time = unix_time
+		# TODO: Check disk usage of such spam
+		pad_dump = cloneProps pad
+		console.log pad_dump
+		database.events.add
+			unix_time: unix_time
+			session_time: session_time
+			pad: pad_dump
+	#usage = await navigator.storage.estimate()
+	#console.log usage.usage/1e6
+	return
+
+get_databases = ->
+	names = await Dexie.getDatabaseNames()
+	names.sort()
+	names.reverse()
 	
-	wtf = await logger.write JSON.stringify(d)
-	el = controller_elements[pad.index]
-	if not el
-		el = document.createElement("div")
-		document.getElementById("controllers").append(el)
-		controller_elements[pad.index] = el
+	return names.filter (n) -> n.startsWith session_base
 
-	el.innerHTML = JSON.stringify(flatobj.flatobj(d))
 
-window.download = () ->
+list_databases = ->
+	names = await get_databases()
+
+	table = $ "#sessions"
+	for name in names
+		table.append """
+			<tr>
+				<td><a href="javascript:download_database('#{name}');">#{name}</a></td>
+			</tr>
+			"""
+
+delete_old_databases = ->
+
+error = (msg) ->
+	alert msg
+	throw "Stop the show!"
+
+window.download_database = (dbid) ->
+	db = await new Dexie(dbid).open()
+	table = db.table "events"
+	
+	pad_data = {}
+
+	for ev in await table.toArray()
+		console.log ev
+		row =
+			unix_time: ev.unix_time
+			session_time: ev.session_time
+			pad_time: ev.pad.timestamp
+			axes: ev.pad.axes
+			buttons: (v.value for n, v of ev.pad.buttons)
+			mapping: ev.pad.mapping
+		
+		[header, row] = flatobj.flatobj row
+		header = (h.substring(1).replaceAll('.', '_') for h in header).join(",")
+		row = row.join(",")
+		
+		pad_id = "#{ev.pad.id}-#{ev.pad_number}"
+		if pad_id not of pad_data
+			pad_data[pad_id] =
+				rows: []
+				header: header
+		data = pad_data[pad_id]
+		
+		if header != data.header
+			error "Data header mismatch! Contact Jami!"
+		
+		data.rows.push row
+		
+	if Object.keys(pad_data).length == 0
+		error "No data in this session"
+	
 	output = new JSZip()
-	for await [name, fh] from logdir.entries()
-		f = await fh.getFile()
-		c = await f.text()
-		output.file name, c
-	
+
+	for pad_id, data of pad_data
+		d = header + "\n" + data.rows.join("\n")
+		output.file pad_id + ".csv", d
 	content = await output.generateAsync type: "blob", compression: "DEFLATE"
-	saveAs content, "joydump-#{session_id}.zip"
-	###
-	console.log("download");
-	//let jsonBlob = new Blob([JSON.stringify(log)], { type: 'application/javascript;charset=utf-8' });
-	let datestr = (new Date()).toISOString();
-	let filebase = "joydump-" + datestr;
-	output.file(filebase + ".json", JSON.stringify(log));
-	output.generateAsync({type: "blob", compression: "DEFLATE"})
-	.then((content) => {
-		saveAs(content, filebase+".zip");
-	});
-	###
+	saveAs content, "joydump-#{dbid}.zip"
 
-logdir = null
-session_id = null
 do ->
-	if not navigator.storage.getDirectory
-		error "Your browser doesn't support the File System Access API. Please uprage your browser."
-		return
-	
+	#console.log new Date()
+	console.log session_id
+	database = new Dexie session_id
+	database.version(1).stores events: "++row"
+	await database.open()
+	await list_databases()
 
-	session_id = (new Date()).toISOString()
-	root = await navigator.storage.getDirectory()
-	logsdir = await root.getDirectoryHandle "joydump", create: true
-	
-	#testhandle = await logsdir.getFileHandle "test", create: true
-	#readable = await testhandle.getFile()
-	#console.log "Contents", await readable.text()
-	#writable = await testhandle.createWritable keepExistingData: true
-	#console.log writable
-	#await writable.write("Foo\n")
-	
-	logdir = await logsdir.getDirectoryHandle session_id, create: true
-	
-	setInterval(dump_joys, 10)
+	window.addEventListener "gamepadconnected", new_gamepad
+	dumper = -> dump_gamepads database
+	setInterval dumper, 10
+	#usage = await navigator.storage.estimate()

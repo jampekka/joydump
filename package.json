@@ -20,5 +20,12 @@
     "coffeescript": "^2.7.0",
     "esbuild": "^0.18.10",
     "esbuild-coffeescript": "^2.2.0"
+  },
+  "dependencies": {
+    "dexie": "^3.2.4",
+    "file-saver": "^2.0.5",
+    "jquery": "^3.7.0",
+    "jszip": "^3.10.1",
+    "lodash": "^4.17.21"
   }
 }
