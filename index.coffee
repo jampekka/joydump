@@ -21,17 +21,20 @@ cloneProps = (o) ->
 		d[prop] = cloneProps(o[prop])
 	return d
 
+control_el = $ "#controllers"
+control_els = {}
 new_gamepad = (e) ->
 	pad = e.gamepad
 	#num = gamepads_seen; gamepads_seen += 1
 	#dbid = "joydump/#{session_id}/#{num}"
 	#db = new Dexie dbid
 	#db.version(1).stores events: "++row"
+	pad_number = gamepads.length
 	gamepads.push
-		pad_number: gamepads.length
+		pad_number: pad_number
 		pad: pad
 		prev_timestamp: undefined
-	
+	control_els[pad_number] = control_el.append "<div></div>"
 	console.log "Joystick connected", pad
 
 dump_gamepads = (database) ->
@@ -45,11 +48,15 @@ dump_gamepads = (database) ->
 
 		# TODO: Check disk usage of such spam
 		pad_dump = cloneProps pad
-		console.log pad_dump
-		database.events.add
+		ev =
 			unix_time: unix_time
 			session_time: session_time
+			pad_number: padinfo.pad_number
 			pad: pad_dump
+		database.events.add ev
+			
+
+		control_els[padinfo.pad_number].text JSON.stringify stripped_event ev
 	#usage = await navigator.storage.estimate()
 	#console.log usage.usage/1e6
 	return
@@ -79,6 +86,16 @@ error = (msg) ->
 	alert msg
 	throw "Stop the show!"
 
+stripped_event = (ev) ->
+	row =
+		unix_time: ev.unix_time
+		session_time: ev.session_time
+		pad_time: ev.pad.timestamp
+		axes: ev.pad.axes
+		buttons: (v.value for n, v of ev.pad.buttons)
+		mapping: ev.pad.mapping
+	return row
+
 window.download_database = (dbid) ->
 	db = await new Dexie(dbid).open()
 	table = db.table "events"
@@ -86,15 +103,8 @@ window.download_database = (dbid) ->
 	pad_data = {}
 
 	for ev in await table.toArray()
-		console.log ev
-		row =
-			unix_time: ev.unix_time
-			session_time: ev.session_time
-			pad_time: ev.pad.timestamp
-			axes: ev.pad.axes
-			buttons: (v.value for n, v of ev.pad.buttons)
-			mapping: ev.pad.mapping
-		
+		row = stripped_event ev
+
 		[header, row] = flatobj.flatobj row
 		header = (h.substring(1).replaceAll('.', '_') for h in header).join(",")
 		row = row.join(",")
@@ -120,7 +130,7 @@ window.download_database = (dbid) ->
 		d = header + "\n" + data.rows.join("\n")
 		output.file pad_id + ".csv", d
 	content = await output.generateAsync type: "blob", compression: "DEFLATE"
-	saveAs content, "joydump-#{dbid}.zip"
+	saveAs content, "#{dbid}.zip"
 
 do ->
 	#console.log new Date()

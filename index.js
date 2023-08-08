@@ -13947,7 +13947,7 @@
   var require_joydump = __commonJS({
     "index.coffee"(exports) {
       (function() {
-        var $, Dexie2, JSZip, _is_object2, cloneProps, delete_old_databases, dump_gamepads, error, flatobj2, gamepads, gamepads_seen, get_databases, list_databases, new_gamepad, saveAs, session_base, session_id;
+        var $, Dexie2, JSZip, _is_object2, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, flatobj2, gamepads, gamepads_seen, get_databases, list_databases, new_gamepad, saveAs, session_base, session_id, stripped_event;
         ({ Dexie: Dexie2 } = (init_dexie(), __toCommonJS(dexie_exports)));
         $ = require_jquery();
         flatobj2 = (init_flatobj(), __toCommonJS(flatobj_exports));
@@ -13972,18 +13972,22 @@
           }
           return d;
         };
+        control_el = $("#controllers");
+        control_els = {};
         new_gamepad = function(e) {
-          var pad2;
+          var pad2, pad_number;
           pad2 = e.gamepad;
+          pad_number = gamepads.length;
           gamepads.push({
-            pad_number: gamepads.length,
+            pad_number,
             pad: pad2,
             prev_timestamp: void 0
           });
+          control_els[pad_number] = control_el.append("<div></div>");
           return console.log("Joystick connected", pad2);
         };
         dump_gamepads = function(database) {
-          var i, len, pad2, pad_dump, padinfo, session_time, unix_time;
+          var ev, i, len, pad2, pad_dump, padinfo, session_time, unix_time;
           unix_time = Date.now() / 1e3;
           session_time = performance.now();
           for (i = 0, len = gamepads.length; i < len; i++) {
@@ -13997,12 +14001,14 @@
             }
             padinfo.timestamp = pad2.timestamp;
             pad_dump = cloneProps(pad2);
-            console.log(pad_dump);
-            database.events.add({
+            ev = {
               unix_time,
               session_time,
+              pad_number: padinfo.pad_number,
               pad: pad_dump
-            });
+            };
+            database.events.add(ev);
+            control_els[padinfo.pad_number].text(JSON.stringify(stripped_event(ev)));
           }
         };
         get_databases = async function() {
@@ -14033,32 +14039,36 @@
           alert(msg);
           throw "Stop the show!";
         };
+        stripped_event = function(ev) {
+          var n, row, v;
+          row = {
+            unix_time: ev.unix_time,
+            session_time: ev.session_time,
+            pad_time: ev.pad.timestamp,
+            axes: ev.pad.axes,
+            buttons: function() {
+              var ref, results;
+              ref = ev.pad.buttons;
+              results = [];
+              for (n in ref) {
+                v = ref[n];
+                results.push(v.value);
+              }
+              return results;
+            }(),
+            mapping: ev.pad.mapping
+          };
+          return row;
+        };
         window.download_database = async function(dbid) {
-          var content, d, data, db, ev, h, header, i, len, n, output, pad_data, pad_id, ref, row, table, v;
+          var content, d, data, db, ev, h, header, i, len, output, pad_data, pad_id, ref, row, table;
           db = await new Dexie2(dbid).open();
           table = db.table("events");
           pad_data = {};
           ref = await table.toArray();
           for (i = 0, len = ref.length; i < len; i++) {
             ev = ref[i];
-            console.log(ev);
-            row = {
-              unix_time: ev.unix_time,
-              session_time: ev.session_time,
-              pad_time: ev.pad.timestamp,
-              axes: ev.pad.axes,
-              buttons: function() {
-                var ref1, results;
-                ref1 = ev.pad.buttons;
-                results = [];
-                for (n in ref1) {
-                  v = ref1[n];
-                  results.push(v.value);
-                }
-                return results;
-              }(),
-              mapping: ev.pad.mapping
-            };
+            row = stripped_event(ev);
             [header, row] = flatobj2.flatobj(row);
             header = function() {
               var j, len1, results;
@@ -14096,7 +14106,7 @@
             type: "blob",
             compression: "DEFLATE"
           });
-          return saveAs(content, `joydump-${dbid}.zip`);
+          return saveAs(content, `${dbid}.zip`);
         };
         (async function() {
           var database, dumper;
