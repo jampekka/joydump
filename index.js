@@ -13947,14 +13947,14 @@
   var require_joydump = __commonJS({
     "index.coffee"(exports) {
       (function() {
-        var $, Dexie2, JSZip, _is_object2, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, flatobj2, gamepads, gamepads_seen, get_databases, list_databases, new_gamepad, saveAs, session_base, session_id, stripped_event, update_data_usage;
+        var $, Dexie2, JSZip, _is_object2, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, flatobj2, gamepads, gamepads_seen, get_databases, get_pad_id, list_databases, new_gamepad, saveAs, session_base, session_id, stripped_event, update_data_usage;
         ({ Dexie: Dexie2 } = (init_dexie(), __toCommonJS(dexie_exports)));
         $ = require_jquery();
         flatobj2 = (init_flatobj(), __toCommonJS(flatobj_exports));
         JSZip = require_jszip_min();
         ({ saveAs } = require_FileSaver_min());
         console.log(saveAs);
-        gamepads = [];
+        gamepads = {};
         gamepads_seen = 0;
         session_base = "joydump-";
         session_id = session_base + (/* @__PURE__ */ new Date()).toISOString();
@@ -13972,27 +13972,36 @@
           }
           return d;
         };
+        get_pad_id = function(pad2) {
+          return `${pad2.id}-${pad2.index}`;
+        };
         control_el = $("#controllers");
         control_els = {};
         new_gamepad = function(e) {
-          var pad2, pad_number;
+          var pad2, pad_id;
           pad2 = e.gamepad;
-          pad_number = gamepads.length;
-          gamepads.push({
-            pad_number,
+          pad_id = get_pad_id(pad2);
+          gamepads[pad_id] = {
+            pad_id,
             pad: pad2,
-            prev_timestamp: void 0
-          });
-          control_els[pad_number] = control_el.append("<div class='controller'></div>");
+            // This seems to get stale on chrome!
+            timestamp: void 0
+          };
+          control_els[pad_id] = control_el.append("<div class='controller'></div>");
           return console.log("Joystick connected", pad2);
         };
         dump_gamepads = function(database) {
-          var ev, i, len, pad2, pad_dump, padinfo, session_time, unix_time;
+          var ev, i, len, pad2, pad_dump, pad_id, padinfo, ref, session_time, unix_time;
           unix_time = Date.now() / 1e3;
           session_time = performance.now();
-          for (i = 0, len = gamepads.length; i < len; i++) {
-            padinfo = gamepads[i];
-            pad2 = padinfo.pad;
+          ref = navigator.getGamepads();
+          for (i = 0, len = ref.length; i < len; i++) {
+            pad2 = ref[i];
+            if (!pad2) {
+              continue;
+            }
+            pad_id = get_pad_id(pad2);
+            padinfo = gamepads[pad_id];
             if (!pad2.connected) {
               continue;
             }
@@ -14000,15 +14009,16 @@
               continue;
             }
             padinfo.timestamp = pad2.timestamp;
+            console.log(padinfo);
             pad_dump = cloneProps(pad2);
             ev = {
               unix_time,
               session_time,
-              pad_number: padinfo.pad_number,
+              pad_id: padinfo.pad_id,
               pad: pad_dump
             };
             database.events.add(ev);
-            control_els[padinfo.pad_number].text(JSON.stringify(stripped_event(ev)));
+            control_els[pad_id].text(JSON.stringify(stripped_event(ev)));
           }
         };
         get_databases = async function() {
@@ -14108,7 +14118,7 @@
               return results;
             }().join(",");
             row = row.join(",");
-            pad_id = `${ev.pad.id}-${ev.pad_number}`;
+            pad_id = ev.pad_id;
             if (!(pad_id in pad_data)) {
               pad_data[pad_id] = {
                 rows: [],
@@ -14144,7 +14154,7 @@
           ref = await table.toArray();
           for (i = 0, len = ref.length; i < len; i++) {
             ev = ref[i];
-            pad_id = `${ev.pad.id}-${ev.pad_number}`;
+            pad_id = ev.pad_id;
             if (!(pad_id in pad_data)) {
               pad_data[pad_id] = "";
             }

@@ -6,7 +6,7 @@ JSZip = require 'jszip'
 {saveAs} = require 'file-saver'
 console.log saveAs
 
-gamepads = []
+gamepads = {}
 gamepads_seen = 0
 session_base = "joydump-"
 session_id = session_base + (new Date()).toISOString()
@@ -21,42 +21,48 @@ cloneProps = (o) ->
 		d[prop] = cloneProps(o[prop])
 	return d
 
+# This may not be unique per session in some very weird setups
+get_pad_id = (pad) ->
+	return "#{pad.id}-#{pad.index}"
+
 control_el = $ "#controllers"
 control_els = {}
 new_gamepad = (e) ->
 	pad = e.gamepad
-	#num = gamepads_seen; gamepads_seen += 1
-	#dbid = "joydump/#{session_id}/#{num}"
-	#db = new Dexie dbid
-	#db.version(1).stores events: "++row"
-	pad_number = gamepads.length
-	gamepads.push
-		pad_number: pad_number
-		pad: pad
-		prev_timestamp: undefined
-	control_els[pad_number] = control_el.append "<div class='controller'></div>"
+	pad_id = get_pad_id pad
+	gamepads[pad_id] =
+		pad_id: pad_id
+		pad: pad # This seems to get stale on chrome!
+		timestamp: undefined
+	control_els[pad_id] = control_el.append "<div class='controller'></div>"
+	
 	console.log "Joystick connected", pad
+
+
 
 dump_gamepads = (database) ->
 	unix_time = Date.now()/1000
 	session_time = performance.now()
-	for padinfo in gamepads
-		pad = padinfo.pad
+	for pad in navigator.getGamepads()
+		continue if not pad
+		pad_id = get_pad_id pad
+		padinfo = gamepads[pad_id]
+		#pad = padinfo.pad
 		continue if not pad.connected
 		continue if pad.timestamp == padinfo.timestamp
 		padinfo.timestamp = pad.timestamp
+		console.log padinfo
 
 		# TODO: Check disk usage of such spam
 		pad_dump = cloneProps pad
 		ev =
 			unix_time: unix_time
 			session_time: session_time
-			pad_number: padinfo.pad_number
+			pad_id: padinfo.pad_id
 			pad: pad_dump
 		database.events.add ev
-			
 
-		control_els[padinfo.pad_number].text JSON.stringify stripped_event ev
+		control_els[pad_id].text JSON.stringify stripped_event ev
 	#usage = await navigator.storage.estimate()
 	#console.log usage.usage/1e6
 	return
@@ -139,7 +145,7 @@ window.download_database = (dbid) ->
 		header = (h.substring(1).replaceAll('.', '_') for h in header).join(",")
 		row = row.join(",")
 		
-		pad_id = "#{ev.pad.id}-#{ev.pad_number}"
+		pad_id = ev.pad_id
 		if pad_id not of pad_data
 			pad_data[pad_id] =
 				rows: []
@@ -170,7 +176,7 @@ window.dump_database = (dbid) ->
 	pad_data = {}
 
 	for ev in await table.toArray()
-		pad_id = "#{ev.pad.id}-#{ev.pad_number}"
+		pad_id = ev.pad_id
 		if pad_id not of pad_data
 			pad_data[pad_id] = ""
 		
