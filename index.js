@@ -13990,7 +13990,7 @@
           control_els[pad_id] = control_el.append("<div class='controller'></div>");
           return console.log("Joystick connected", pad2);
         };
-        dump_gamepads = function(database) {
+        dump_gamepads = function(database2) {
           var ev, i, len, pad2, pad_dump, pad_id, padinfo, ref, session_time, unix_time;
           unix_time = Date.now() / 1e3;
           session_time = performance.now();
@@ -14017,7 +14017,7 @@
               pad_id: padinfo.pad_id,
               pad: pad_dump
             };
-            database.events.add(ev);
+            database2.events.add(ev);
             control_els[pad_id].text(JSON.stringify(stripped_event(ev)));
           }
         };
@@ -14060,7 +14060,7 @@
               continue;
             }
             results.push(table.append(`<tr>
-	<td>${dl_button(session_id)}</td>
+	<td>${dl_button(name)}</td>
 	<td>${name}</td>
 	<td>
 	<button class="btn btn-danger" type="button" onclick="javascript:remove_database('${name}')">
@@ -14099,13 +14099,13 @@
           return row;
         };
         window.download_database = async function(dbid) {
-          var content, d, data, db, ev, h, header, i, len, output, pad_data, pad_id, ref, row, table;
+          var content, d, data, db, ev, h, header, i, len, output, pad_data, pad_id, row, table;
           db = await new Dexie2(dbid).open();
           table = db.table("events");
           pad_data = {};
-          ref = await table.toArray();
-          for (i = 0, len = ref.length; i < len; i++) {
-            ev = ref[i];
+          data = await table.toArray();
+          for (i = 0, len = data.length; i < len; i++) {
+            ev = data[i];
             row = stripped_event(ev);
             [header, row] = flatobj2.flatobj(row);
             header = function() {
@@ -14187,14 +14187,9 @@
           return $("#data_usage").text(`${percentage.toFixed(1)}% (${mb.toFixed(1)}MB)`);
         };
         (async function() {
-          var database, dumper;
-          console.log(session_id);
-          database = new Dexie2(session_id);
-          database.version(1).stores({
-            events: "++row"
-          });
-          await database.open();
+          var dumper;
           await list_databases();
+          return;
           window.addEventListener("gamepadconnected", new_gamepad);
           dumper = function() {
             return dump_gamepads(database);

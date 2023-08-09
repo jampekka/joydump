@@ -106,7 +106,7 @@ list_databases = ->
 		continue if name == session_id
 		table.append """
 			<tr>
-				<td>#{dl_button(session_id)}</td>
+				<td>#{dl_button(name)}</td>
 				<td>#{name}</td>
 				<td>
 				<button class="btn btn-danger" type="button" onclick="javascript:remove_database('#{name}')">
@@ -137,8 +137,9 @@ window.download_database = (dbid) ->
 	table = db.table "events"
 	
 	pad_data = {}
-
-	for ev in await table.toArray()
+	
+	data = await table.toArray()
+	for ev in data
 		row = stripped_event ev
 
 		[header, row] = flatobj.flatobj row
@@ -206,11 +207,11 @@ update_data_usage = ->
 	$("#data_usage").text "#{percentage.toFixed 1}% (#{mb.toFixed 1}MB)"
 
 do ->
-	#console.log new Date()
 	console.log session_id
 	database = new Dexie session_id
 	database.version(1).stores events: "++row"
 	await database.open()
+
 	await list_databases()
 
 	window.addEventListener "gamepadconnected", new_gamepad
