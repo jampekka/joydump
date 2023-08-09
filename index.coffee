@@ -34,7 +34,7 @@ new_gamepad = (e) ->
 		pad_number: pad_number
 		pad: pad
 		prev_timestamp: undefined
-	control_els[pad_number] = control_el.append "<div></div>"
+	control_els[pad_number] = control_el.append "<div class='controller'></div>"
 	console.log "Joystick connected", pad
 
 dump_gamepads = (database) ->
@@ -162,6 +162,12 @@ window.remove_database = (dbid) ->
 	await Dexie.delete dbid
 	await list_databases()
 
+update_data_usage = ->
+	usage = await navigator.storage.estimate()
+	mb = usage.usage/1e6
+	percentage = (usage.usage/usage.quota)*100
+	$("#data_usage").text "#{percentage.toFixed 1}% (#{mb.toFixed 1}MB)"
+
 do ->
 	#console.log new Date()
 	console.log session_id
@@ -173,4 +179,5 @@ do ->
 	window.addEventListener "gamepadconnected", new_gamepad
 	dumper = -> dump_gamepads database
 	setInterval dumper, 10
+	setInterval update_data_usage, 100
 	#usage = await navigator.storage.estimate()

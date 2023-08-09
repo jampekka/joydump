@@ -13947,7 +13947,7 @@
   var require_joydump = __commonJS({
     "index.coffee"(exports) {
       (function() {
-        var $, Dexie2, JSZip, _is_object2, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, flatobj2, gamepads, gamepads_seen, get_databases, list_databases, new_gamepad, saveAs, session_base, session_id, stripped_event;
+        var $, Dexie2, JSZip, _is_object2, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, flatobj2, gamepads, gamepads_seen, get_databases, list_databases, new_gamepad, saveAs, session_base, session_id, stripped_event, update_data_usage;
         ({ Dexie: Dexie2 } = (init_dexie(), __toCommonJS(dexie_exports)));
         $ = require_jquery();
         flatobj2 = (init_flatobj(), __toCommonJS(flatobj_exports));
@@ -13983,7 +13983,7 @@
             pad: pad2,
             prev_timestamp: void 0
           });
-          control_els[pad_number] = control_el.append("<div></div>");
+          control_els[pad_number] = control_el.append("<div class='controller'></div>");
           return console.log("Joystick connected", pad2);
         };
         dump_gamepads = function(database) {
@@ -14139,6 +14139,13 @@
           await Dexie2.delete(dbid);
           return await list_databases();
         };
+        update_data_usage = async function() {
+          var mb, percentage, usage;
+          usage = await navigator.storage.estimate();
+          mb = usage.usage / 1e6;
+          percentage = usage.usage / usage.quota * 100;
+          return $("#data_usage").text(`${percentage.toFixed(1)}% (${mb.toFixed(1)}MB)`);
+        };
         (async function() {
           var database, dumper;
           console.log(session_id);
@@ -14152,7 +14159,8 @@
           dumper = function() {
             return dump_gamepads(database);
           };
-          return setInterval(dumper, 10);
+          setInterval(dumper, 10);
+          return setInterval(update_data_usage, 100);
         })();
       }).call(exports);
     }
