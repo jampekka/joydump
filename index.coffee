@@ -77,7 +77,9 @@ list_databases = ->
 	table.empty()
 	current = table.append """<tr>
 		<td>
-			<a href="javascript:download_database('#{session_id}');">Download</a>
+			<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{session_id}')">
+			<i class="bi bi-download"></i> Download
+			</button>
 			</td>
 			<td>#{session_id}</td>
 			<td>
@@ -90,11 +92,15 @@ list_databases = ->
 		table.append """
 			<tr>
 				<td>
-					<a href="javascript:download_database('#{name}');">Download</a>
+				<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{name}')">
+			<i class="bi bi-download"></i> Download
+			</button>
 				</td>
 				<td>#{name}</td>
 				<td>
-					<a href="javascript:remove_database('#{name}');">Delete</a>
+				<button class="btn btn-danger" type="button" onclick="javascript:remove_database('#{name}')">
+			<i class="bi bi-trash"></i> Delete
+			</button>
 				</td>
 			</tr>
 			"""
