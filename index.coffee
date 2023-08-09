@@ -27,31 +27,49 @@ get_pad_id = (pad) ->
 
 control_el = $ "#controllers"
 control_els = {}
-new_gamepad = (e) ->
-	pad = e.gamepad
+new_gamepad = (pad) ->
+	#pad = e.gamepad
 	pad_id = get_pad_id pad
 	gamepads[pad_id] =
 		pad_id: pad_id
 		pad: pad # This seems to get stale on chrome!
 		timestamp: undefined
-	control_els[pad_id] = control_el.append "<div class='controller'></div>"
+	control_els[pad_id] = $("<div class='controller'></div>").appendTo control_el
 	
 	console.log "Joystick connected", pad
 
+fake_pad = ->
+	id: "Totally fake gamepad"
+	timestamp: Math.round(performance.now()/1000)*1000
+	buttons: [0, 0, 0, 0]
+	axes: [0, 0, 0, 0]
+	connected: true
+	
+	
+
+getGamepads = ->
+	pads = navigator.getGamepads()
+
+	#fake = fake_pad()
+	#fake.index = pads.length + 1
+	#pads = pads.concat([fake])
+
+	return pads
 
 
 dump_gamepads = (database) ->
 	unix_time = Date.now()/1000
 	session_time = performance.now()
-	for pad in navigator.getGamepads()
+	for pad in getGamepads()
 		continue if not pad
 		pad_id = get_pad_id pad
+		if pad_id not of gamepads
+			new_gamepad pad
+
 		padinfo = gamepads[pad_id]
-		#pad = padinfo.pad
 		continue if not pad.connected
 		continue if pad.timestamp == padinfo.timestamp
 		padinfo.timestamp = pad.timestamp
-		console.log padinfo
 
 		# TODO: Check disk usage of such spam
 		pad_dump = cloneProps pad
@@ -138,8 +156,10 @@ window.download_database = (dbid) ->
 	
 	pad_data = {}
 	
-	data = await table.toArray()
-	for ev in data
+	console.log "Loading csv", dbid
+	rows = await table.toArray()
+	for ev in rows
+		console.log ev
 		row = stripped_event ev
 
 		[header, row] = flatobj.flatobj row
@@ -175,7 +195,7 @@ window.dump_database = (dbid) ->
 	table = db.table "events"
 	
 	pad_data = {}
-
+	console.log "Loading json", dbid
 	for ev in await table.toArray()
 		pad_id = ev.pad_id
 		if pad_id not of pad_data
@@ -213,8 +233,8 @@ do ->
 	await database.open()
 
 	await list_databases()
-
-	window.addEventListener "gamepadconnected", new_gamepad
+	
+	#window.addEventListener "gamepadconnected", new_gamepad
 	dumper = -> dump_gamepads database
 	setInterval dumper, 10
 	setInterval update_data_usage, 100

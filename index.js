@@ -13947,7 +13947,7 @@
   var require_joydump = __commonJS({
     "index.coffee"(exports) {
       (function() {
-        var $, Dexie2, JSZip, _is_object2, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, flatobj2, gamepads, gamepads_seen, get_databases, get_pad_id, list_databases, new_gamepad, saveAs, session_base, session_id, stripped_event, update_data_usage;
+        var $, Dexie2, JSZip, _is_object2, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, fake_pad, flatobj2, gamepads, gamepads_seen, getGamepads, get_databases, get_pad_id, list_databases, new_gamepad, saveAs, session_base, session_id, stripped_event, update_data_usage;
         ({ Dexie: Dexie2 } = (init_dexie(), __toCommonJS(dexie_exports)));
         $ = require_jquery();
         flatobj2 = (init_flatobj(), __toCommonJS(flatobj_exports));
@@ -13977,9 +13977,8 @@
         };
         control_el = $("#controllers");
         control_els = {};
-        new_gamepad = function(e) {
-          var pad2, pad_id;
-          pad2 = e.gamepad;
+        new_gamepad = function(pad2) {
+          var pad_id;
           pad_id = get_pad_id(pad2);
           gamepads[pad_id] = {
             pad_id,
@@ -13987,20 +13986,37 @@
             // This seems to get stale on chrome!
             timestamp: void 0
           };
-          control_els[pad_id] = control_el.append("<div class='controller'></div>");
+          control_els[pad_id] = $("<div class='controller'></div>").appendTo(control_el);
           return console.log("Joystick connected", pad2);
         };
-        dump_gamepads = function(database2) {
+        fake_pad = function() {
+          return {
+            id: "Totally fake gamepad",
+            timestamp: Math.round(performance.now() / 1e3) * 1e3,
+            buttons: [0, 0, 0, 0],
+            axes: [0, 0, 0, 0],
+            connected: true
+          };
+        };
+        getGamepads = function() {
+          var pads;
+          pads = navigator.getGamepads();
+          return pads;
+        };
+        dump_gamepads = function(database) {
           var ev, i, len, pad2, pad_dump, pad_id, padinfo, ref, session_time, unix_time;
           unix_time = Date.now() / 1e3;
           session_time = performance.now();
-          ref = navigator.getGamepads();
+          ref = getGamepads();
           for (i = 0, len = ref.length; i < len; i++) {
             pad2 = ref[i];
             if (!pad2) {
               continue;
             }
             pad_id = get_pad_id(pad2);
+            if (!(pad_id in gamepads)) {
+              new_gamepad(pad2);
+            }
             padinfo = gamepads[pad_id];
             if (!pad2.connected) {
               continue;
@@ -14009,7 +14025,6 @@
               continue;
             }
             padinfo.timestamp = pad2.timestamp;
-            console.log(padinfo);
             pad_dump = cloneProps(pad2);
             ev = {
               unix_time,
@@ -14017,7 +14032,7 @@
               pad_id: padinfo.pad_id,
               pad: pad_dump
             };
-            database2.events.add(ev);
+            database.events.add(ev);
             control_els[pad_id].text(JSON.stringify(stripped_event(ev)));
           }
         };
@@ -14099,13 +14114,15 @@
           return row;
         };
         window.download_database = async function(dbid) {
-          var content, d, data, db, ev, h, header, i, len, output, pad_data, pad_id, row, table;
+          var content, d, data, db, ev, h, header, i, len, output, pad_data, pad_id, row, rows, table;
           db = await new Dexie2(dbid).open();
           table = db.table("events");
           pad_data = {};
-          data = await table.toArray();
-          for (i = 0, len = data.length; i < len; i++) {
-            ev = data[i];
+          console.log("Loading csv", dbid);
+          rows = await table.toArray();
+          for (i = 0, len = rows.length; i < len; i++) {
+            ev = rows[i];
+            console.log(ev);
             row = stripped_event(ev);
             [header, row] = flatobj2.flatobj(row);
             header = function() {
@@ -14151,6 +14168,7 @@
           db = await new Dexie2(dbid).open();
           table = db.table("events");
           pad_data = {};
+          console.log("Loading json", dbid);
           ref = await table.toArray();
           for (i = 0, len = ref.length; i < len; i++) {
             ev = ref[i];
@@ -14187,10 +14205,14 @@
           return $("#data_usage").text(`${percentage.toFixed(1)}% (${mb.toFixed(1)}MB)`);
         };
         (async function() {
-          var dumper;
+          var database, dumper;
+          console.log(session_id);
+          database = new Dexie2(session_id);
+          database.version(1).stores({
+            events: "++row"
+          });
+          await database.open();
           await list_databases();
-          return;
-          window.addEventListener("gamepadconnected", new_gamepad);
           dumper = function() {
             return dump_gamepads(database);
           };
