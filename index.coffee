@@ -70,13 +70,32 @@ get_databases = ->
 
 
 list_databases = ->
+	# TODO: The newest isn't necessarily this session
 	names = await get_databases()
 
-	table = $ "#sessions"
+	table = $ "#current_session"
+	table.empty()
+	current = table.append """<tr>
+		<td>
+			<a href="javascript:download_database('#{session_id}');">Download</a>
+			</td>
+			<td>#{session_id}</td>
+			<td>
+			</td>
+		</tr>"""
+	table = $ "#old_sessions"
+	table.empty()
 	for name in names
+		continue if name == session_id
 		table.append """
 			<tr>
-				<td><a href="javascript:download_database('#{name}');">#{name}</a></td>
+				<td>
+					<a href="javascript:download_database('#{name}');">Download</a>
+				</td>
+				<td>#{name}</td>
+				<td>
+					<a href="javascript:remove_database('#{name}');">Delete</a>
+				</td>
 			</tr>
 			"""
 
@@ -131,6 +150,10 @@ window.download_database = (dbid) ->
 		output.file pad_id + ".csv", d
 	content = await output.generateAsync type: "blob", compression: "DEFLATE"
 	saveAs content, "#{dbid}.zip"
+
+window.remove_database = (dbid) ->
+	await Dexie.delete dbid
+	await list_databases()
 
 do ->
 	#console.log new Date()

@@ -14021,14 +14021,34 @@
           });
         };
         list_databases = async function() {
-          var i, len, name, names, results, table;
+          var current, i, len, name, names, results, table;
           names = await get_databases();
-          table = $("#sessions");
+          table = $("#current_session");
+          table.empty();
+          current = table.append(`<tr>
+<td>
+	<a href="javascript:download_database('${session_id}');">Download</a>
+	</td>
+	<td>${session_id}</td>
+	<td>
+	</td>
+</tr>`);
+          table = $("#old_sessions");
+          table.empty();
           results = [];
           for (i = 0, len = names.length; i < len; i++) {
             name = names[i];
+            if (name === session_id) {
+              continue;
+            }
             results.push(table.append(`<tr>
-	<td><a href="javascript:download_database('${name}');">${name}</a></td>
+	<td>
+		<a href="javascript:download_database('${name}');">Download</a>
+	</td>
+	<td>${name}</td>
+	<td>
+		<a href="javascript:remove_database('${name}');">Delete</a>
+	</td>
 </tr>`));
           }
           return results;
@@ -14107,6 +14127,10 @@
             compression: "DEFLATE"
           });
           return saveAs(content, `${dbid}.zip`);
+        };
+        window.remove_database = async function(dbid) {
+          await Dexie2.delete(dbid);
+          return await list_databases();
         };
         (async function() {
           var database, dumper;
