@@ -34,25 +34,63 @@ new_gamepad = (pad) ->
 		pad_id: pad_id
 		pad: pad # This seems to get stale on chrome!
 		timestamp: undefined
-	control_els[pad_id] = $("<div class='controller'></div>").appendTo control_el
-	
+	control_el.append "<b>#{pad_id}</b>"
+	control_els[pad_id] = $("<pre class='controller'></pre>").appendTo control_el
 	console.log "Joystick connected", pad
 
 fake_pad = ->
+	buttons = for i in [0...30]
+		value: (Math.random() > 0.5) + 0
+	axes = for i in [0...4]
+		(Math.random() - 0.5)*2
+
+
 	id: "Totally fake gamepad"
 	timestamp: Math.round(performance.now()/1000)*1000
-	buttons: [0, 0, 0, 0]
-	axes: [0, 0, 0, 0]
+	buttons: buttons
+	axes: axes
 	connected: true
+
+_gamepad_viz_els = {}
+_new_gamepad_viz_el = (pad, pad_id) ->
+	el = $("<div class='gamepad_viz'>").appendTo $("#controllers")
+	console.log pad_id
+	el.append "<b>#{pad_id}</b>"
+	container = $("<div class='control_value_container'>").appendTo el
+
+	"""
+	table = $("<table class='table'>").appendTo el
+	headers = $("<tr>").appendTo $("<thead class='table-dark'>").appendTo table
+	values = $("<tr>").appendTo table
+	axis_els = for _, i in pad.axes
+		headers.append "<th>A#{i}</th>"
+		$("<td>").appendTo(values)
+
+	button_els = for _, i in pad.buttons
+		headers.append "<th>B#{i}</th>"
+		$("<td>").appendTo(values)
+	_gamepad_viz_els[pad_id] =
+		axes: axis_els
+		buttons: button_els
+	"""
+
+gamepad_viz = (pad) ->
+	pad_id = get_pad_id pad
+	if pad_id not of _gamepad_viz_els
+		_new_gamepad_viz_el(pad, pad_id)
 	
-	
+	els = _gamepad_viz_els[pad_id]
+	for v, i in pad.axes
+		els.axes[i].text v.toFixed 3
+	for b, i in pad.buttons
+		els.buttons[i].text b.value
 
 getGamepads = ->
 	pads = navigator.getGamepads()
 
-	#fake = fake_pad()
-	#fake.index = pads.length + 1
-	#pads = pads.concat([fake])
+	fake = fake_pad()
+	fake.index = pads.length + 1
+	pads = pads.concat([fake])
 
 	return pads
 
@@ -79,8 +117,11 @@ dump_gamepads = (database) ->
 			pad_id: padinfo.pad_id
 			pad: pad_dump
 		database.events.add ev
-
-		control_els[pad_id].text JSON.stringify stripped_event ev
+		
+		text = "Axes: " + (v.toFixed(2) for v in pad.axes).join "\t"
+		text += " Buttons: " + (v.value for v in pad.buttons).join " "
+		control_els[pad_id].text text
+		#gamepad_viz pad
 	#usage = await navigator.storage.estimate()
 	#console.log usage.usage/1e6
 	return
