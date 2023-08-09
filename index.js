@@ -14060,11 +14060,8 @@ _gamepad_viz_els[pad_id] =
           return results;
         };
         getGamepads = function() {
-          var fake, pads;
+          var pads;
           pads = navigator.getGamepads();
-          fake = fake_pad();
-          fake.index = pads.length + 1;
-          pads = pads.concat([fake]);
           return pads;
         };
         dump_gamepads = function(database) {

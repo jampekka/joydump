@@ -88,9 +88,9 @@ gamepad_viz = (pad) ->
 getGamepads = ->
 	pads = navigator.getGamepads()
 
-	fake = fake_pad()
-	fake.index = pads.length + 1
-	pads = pads.concat([fake])
+	#fake = fake_pad()
+	#fake.index = pads.length + 1
+	#pads = pads.concat([fake])
 
 	return pads
 
