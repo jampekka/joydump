@@ -14021,16 +14021,21 @@
           });
         };
         list_databases = async function() {
-          var current, i, len, name, names, results, table;
+          var current, dl_button, i, len, name, names, results, table;
           names = await get_databases();
+          dl_button = function(name2) {
+            return `<button class="btn btn-primary" type="button" onclick="javascript:download_database('${name2}')">
+	<i class="bi bi-download"></i> Download
+</button>
+<button class="btn btn-primary" type="button" onclick="javascript:dump_database('${name2}')">
+	<i class=""></i>Dump JSON
+</button>
+`;
+          };
           table = $("#current_session");
           table.empty();
           current = table.append(`<tr>
-<td>
-	<button class="btn btn-primary" type="button" onclick="javascript:download_database('${session_id}')">
-	<i class="bi bi-download"></i> Download
-	</button>
-	</td>
+	<td>${dl_button(session_id)}</td>
 	<td>${session_id}</td>
 	<td>
 		Current session
@@ -14045,11 +14050,7 @@
               continue;
             }
             results.push(table.append(`<tr>
-	<td>
-	<button class="btn btn-primary" type="button" onclick="javascript:download_database('${name}')">
-<i class="bi bi-download"></i> Download
-</button>
-	</td>
+	<td>${dl_button(session_id)}</td>
 	<td>${name}</td>
 	<td>
 	<button class="btn btn-danger" type="button" onclick="javascript:remove_database('${name}')">
@@ -14134,6 +14135,35 @@
             compression: "DEFLATE"
           });
           return saveAs(content, `${dbid}.zip`);
+        };
+        window.dump_database = async function(dbid) {
+          var content, data, db, ev, i, len, output, pad_data, pad_id, ref, row, table;
+          db = await new Dexie2(dbid).open();
+          table = db.table("events");
+          pad_data = {};
+          ref = await table.toArray();
+          for (i = 0, len = ref.length; i < len; i++) {
+            ev = ref[i];
+            pad_id = `${ev.pad.id}-${ev.pad_number}`;
+            if (!(pad_id in pad_data)) {
+              pad_data[pad_id] = "";
+            }
+            row = stripped_event(ev);
+            pad_data[pad_id] += JSON.stringify(row) + "\n";
+          }
+          if (Object.keys(pad_data).length === 0) {
+            error("No data in this session");
+          }
+          output = new JSZip();
+          for (pad_id in pad_data) {
+            data = pad_data[pad_id];
+            output.file(pad_id + ".jsons", data);
+          }
+          content = await output.generateAsync({
+            type: "blob",
+            compression: "DEFLATE"
+          });
+          return saveAs(content, `${dbid}-jsons.zip`);
         };
         window.remove_database = async function(dbid) {
           await Dexie2.delete(dbid);

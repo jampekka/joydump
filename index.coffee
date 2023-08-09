@@ -72,15 +72,23 @@ get_databases = ->
 list_databases = ->
 	# TODO: The newest isn't necessarily this session
 	names = await get_databases()
+	
+	dl_button = (name) ->
+		"""
+		<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{name}')">
+			<i class="bi bi-download"></i> Download
+		</button>
+		<button class="btn btn-primary" type="button" onclick="javascript:dump_database('#{name}')">
+			<i class=""></i>Dump JSON
+		</button>
+		
+		"""
+
 
 	table = $ "#current_session"
 	table.empty()
 	current = table.append """<tr>
-		<td>
-			<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{session_id}')">
-			<i class="bi bi-download"></i> Download
-			</button>
-			</td>
+			<td>#{dl_button(session_id)}</td>
 			<td>#{session_id}</td>
 			<td>
 				Current session
@@ -92,11 +100,7 @@ list_databases = ->
 		continue if name == session_id
 		table.append """
 			<tr>
-				<td>
-				<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{name}')">
-			<i class="bi bi-download"></i> Download
-			</button>
-				</td>
+				<td>#{dl_button(session_id)}</td>
 				<td>#{name}</td>
 				<td>
 				<button class="btn btn-danger" type="button" onclick="javascript:remove_database('#{name}')">
@@ -157,6 +161,33 @@ window.download_database = (dbid) ->
 		output.file pad_id + ".csv", d
 	content = await output.generateAsync type: "blob", compression: "DEFLATE"
 	saveAs content, "#{dbid}.zip"
+
+window.dump_database = (dbid) ->
+	# TODO: No copypaste!
+	db = await new Dexie(dbid).open()
+	table = db.table "events"
+	
+	pad_data = {}
+
+	for ev in await table.toArray()
+		pad_id = "#{ev.pad.id}-#{ev.pad_number}"
+		if pad_id not of pad_data
+			pad_data[pad_id] = ""
+		
+		row = stripped_event ev
+		pad_data[pad_id] += JSON.stringify(row) + "\n"
+		
+	if Object.keys(pad_data).length == 0
+		error "No data in this session"
+	
+	output = new JSZip()
+
+	for pad_id, data of pad_data
+		output.file pad_id + ".jsons", data
+	content = await output.generateAsync type: "blob", compression: "DEFLATE"
+	saveAs content, "#{dbid}-jsons.zip"
+
+
 
 window.remove_database = (dbid) ->
 	await Dexie.delete dbid
