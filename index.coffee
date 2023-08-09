@@ -83,6 +83,7 @@ list_databases = ->
 			</td>
 			<td>#{session_id}</td>
 			<td>
+				Current session
 			</td>
 		</tr>"""
 	table = $ "#old_sessions"
