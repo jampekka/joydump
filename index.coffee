@@ -140,9 +140,9 @@ list_databases = ->
 	
 	dl_button = (name) ->
 		"""
-		<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{name}')">
+		<!--<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{name}')">
 			<i class="bi bi-download"></i> Download
-		</button>
+		</button>-->
 		<button class="btn btn-primary" type="button" onclick="javascript:dump_database('#{name}')">
 			<i class=""></i>Dump JSON
 		</button>

@@ -14130,9 +14130,9 @@ _gamepad_viz_els[pad_id] =
           var current, dl_button, j, len, name, names, results, table;
           names = await get_databases();
           dl_button = function(name2) {
-            return `<button class="btn btn-primary" type="button" onclick="javascript:download_database('${name2}')">
+            return `<!--<button class="btn btn-primary" type="button" onclick="javascript:download_database('${name2}')">
 	<i class="bi bi-download"></i> Download
-</button>
+</button>-->
 <button class="btn btn-primary" type="button" onclick="javascript:dump_database('${name2}')">
 	<i class=""></i>Dump JSON
 </button>
