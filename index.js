@@ -11117,51 +11117,50 @@
   });
 
   // flatobj.coffee
-  var flatobj_exports = {};
-  __export(flatobj_exports, {
-    flatobj: () => flatobj
-  });
-  var _is_object, flatobj_, flatobj;
-  var init_flatobj = __esm({
-    "flatobj.coffee"() {
-      _is_object = function(obj) {
-        return obj === Object(obj);
-      };
-      flatobj_ = function* (obj, me = "") {
-        var i2, len, n, name, names, results;
-        if (!_is_object(obj)) {
-          yield [me, obj];
-          return;
-        }
-        names = function() {
-          var results2;
-          results2 = [];
-          for (name in obj) {
-            results2.push(name);
+  var require_flatobj = __commonJS({
+    "flatobj.coffee"(exports, module) {
+      (function() {
+        var _is_object, flatobj, flatobj_;
+        _is_object = function(obj) {
+          return obj === Object(obj);
+        };
+        flatobj_ = function* (obj, me = "") {
+          var i2, len, n, name, names, results;
+          if (!_is_object(obj)) {
+            yield [me, obj];
+            return;
           }
-          return results2;
-        }();
-        names.sort();
-        results = [];
-        for (i2 = 0, len = names.length; i2 < len; i2++) {
-          name = names[i2];
-          n = `${me}.${name}`;
-          results.push(yield* flatobj_(obj[name], n));
-        }
-        return results;
-      };
-      flatobj = function(obj) {
-        var name, names, ref, value, values, x;
-        names = [];
-        values = [];
-        ref = flatobj_(obj);
-        for (x of ref) {
-          [name, value] = x;
-          names.push(name);
-          values.push(value);
-        }
-        return [names, values];
-      };
+          names = function() {
+            var results2;
+            results2 = [];
+            for (name in obj) {
+              results2.push(name);
+            }
+            return results2;
+          }();
+          names.sort();
+          results = [];
+          for (i2 = 0, len = names.length; i2 < len; i2++) {
+            name = names[i2];
+            n = `${me}.${name}`;
+            results.push(yield* flatobj_(obj[name], n));
+          }
+          return results;
+        };
+        flatobj = function(obj) {
+          var name, names, ref, value, values, x;
+          names = [];
+          values = [];
+          ref = flatobj_(obj);
+          for (x of ref) {
+            [name, value] = x;
+            names.push(name);
+            values.push(value);
+          }
+          return [names, values];
+        };
+        module.exports = flatobj;
+      }).call(exports);
     }
   });
 
@@ -13947,10 +13946,10 @@
   var require_joydump = __commonJS({
     "index.coffee"(exports) {
       (function() {
-        var $, Dexie2, JSZip, _gamepad_viz_els, _is_object2, _new_gamepad_viz_el, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, fake_pad, flatobj2, gamepad_viz, gamepads, gamepads_seen, getGamepads, get_databases, get_pad_id, list_databases, new_gamepad, saveAs, session_base, session_id, stripped_event, update_data_usage;
+        var $, Dexie2, JSZip, _gamepad_viz_els, _is_object, _new_gamepad_viz_el, cloneProps, control_el, control_els, delete_old_databases, dump_gamepads, error, fake_pad, flatobj, gamepad_viz, gamepads, gamepads_seen, getGamepads, get_databases, get_pad_id, list_databases, new_gamepad, objects2csv, saveAs, session_base, session_id, stripped_event, update_data_usage;
         ({ Dexie: Dexie2 } = (init_dexie(), __toCommonJS(dexie_exports)));
         $ = require_jquery();
-        flatobj2 = (init_flatobj(), __toCommonJS(flatobj_exports));
+        flatobj = require_flatobj();
         JSZip = require_jszip_min();
         ({ saveAs } = require_FileSaver_min());
         console.log(saveAs);
@@ -13958,12 +13957,12 @@
         gamepads_seen = 0;
         session_base = "joydump-";
         session_id = session_base + (/* @__PURE__ */ new Date()).toISOString();
-        _is_object2 = function(obj) {
+        _is_object = function(obj) {
           return obj === Object(obj);
         };
         cloneProps = function(o) {
           var d, prop;
-          if (!_is_object2(o)) {
+          if (!_is_object(o)) {
             return o;
           }
           d = {};
@@ -14130,11 +14129,11 @@ _gamepad_viz_els[pad_id] =
           var current, dl_button, j, len, name, names, results, table;
           names = await get_databases();
           dl_button = function(name2) {
-            return `<!--<button class="btn btn-primary" type="button" onclick="javascript:download_database('${name2}')">
-	<i class="bi bi-download"></i> Download
-</button>-->
+            return `<button class="btn btn-primary" type="button" onclick="javascript:download_database('${name2}')">
+	<i class="bi bi-filetype-csv"></i> CSV
+</button>
 <button class="btn btn-primary" type="button" onclick="javascript:dump_database('${name2}')">
-	<i class=""></i>Dump JSON
+	<i class="bi bi-filetype-json"></i>LDJSON
 </button>
 `;
           };
@@ -14194,40 +14193,45 @@ _gamepad_viz_els[pad_id] =
           };
           return row;
         };
+        objects2csv = function(objs) {
+          var csvheader, csvrow, h, hdr, header, j, len, output, output_header, row, values;
+          output_header = null;
+          output = "";
+          for (j = 0, len = objs.length; j < len; j++) {
+            row = objs[j];
+            [hdr, values] = flatobj(row);
+            if (output_header == null) {
+              csvheader = header = function() {
+                var k, len1, results;
+                results = [];
+                for (k = 0, len1 = hdr.length; k < len1; k++) {
+                  h = hdr[k];
+                  results.push(h.substring(1).replaceAll(".", "_"));
+                }
+                return results;
+              }().join(",");
+              output_header = csvheader;
+              output += csvheader + "\n";
+            }
+            csvrow = values.join(",");
+            output += csvrow + "\n";
+          }
+          return output;
+        };
         window.download_database = async function(dbid) {
-          var content, d, data, db, ev, h, header, j, len, output, pad_data, pad_id, row, rows, table;
+          var content, csv, data, db, ev, j, len, output, pad_data, pad_id, row, rows, table;
           db = await new Dexie2(dbid).open();
           table = db.table("events");
           pad_data = {};
-          console.log("Loading csv", dbid);
           rows = await table.toArray();
           for (j = 0, len = rows.length; j < len; j++) {
             ev = rows[j];
-            console.log(ev);
             row = stripped_event(ev);
-            [header, row] = flatobj2.flatobj(row);
-            header = function() {
-              var k, len1, results;
-              results = [];
-              for (k = 0, len1 = header.length; k < len1; k++) {
-                h = header[k];
-                results.push(h.substring(1).replaceAll(".", "_"));
-              }
-              return results;
-            }().join(",");
-            row = row.join(",");
             pad_id = ev.pad_id;
             if (!(pad_id in pad_data)) {
-              pad_data[pad_id] = {
-                rows: [],
-                header
-              };
+              pad_data[pad_id] = [];
             }
-            data = pad_data[pad_id];
-            if (header !== data.header) {
-              error("Data header mismatch! Contact Jami!");
-            }
-            data.rows.push(row);
+            pad_data[pad_id].push(row);
           }
           if (Object.keys(pad_data).length === 0) {
             error("No data in this session");
@@ -14235,8 +14239,8 @@ _gamepad_viz_els[pad_id] =
           output = new JSZip();
           for (pad_id in pad_data) {
             data = pad_data[pad_id];
-            d = header + "\n" + data.rows.join("\n");
-            output.file(pad_id + ".csv", d);
+            csv = objects2csv(data);
+            output.file(pad_id + ".csv", csv);
           }
           content = await output.generateAsync({
             type: "blob",

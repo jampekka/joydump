@@ -12,13 +12,14 @@ flatobj_ = (obj, me="") ->
 		n = "#{me}.#{name}"
 		yield from flatobj_(obj[name], n)
 
-export flatobj = (obj) ->
+flatobj = (obj) ->
 	names = []
 	values = []
 	for [name, value] from flatobj_(obj)
 		names.push name
 		values.push value
 	return [names, values]
+module.exports = flatobj
 
 ###
 console.log "Here"

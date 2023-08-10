@@ -140,11 +140,11 @@ list_databases = ->
 	
 	dl_button = (name) ->
 		"""
-		<!--<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{name}')">
-			<i class="bi bi-download"></i> Download
-		</button>-->
+		<button class="btn btn-primary" type="button" onclick="javascript:download_database('#{name}')">
+			<i class="bi bi-filetype-csv"></i> CSV
+		</button>
 		<button class="btn btn-primary" type="button" onclick="javascript:dump_database('#{name}')">
-			<i class=""></i>Dump JSON
+			<i class="bi bi-filetype-json"></i>LDJSON
 		</button>
 		
 		"""
@@ -191,33 +191,34 @@ stripped_event = (ev) ->
 		mapping: ev.pad.mapping
 	return row
 
+objects2csv = (objs) ->
+	output_header = null
+	output = ""
+	for row in objs
+		[hdr, values] = flatobj row
+		unless output_header?
+			csvheader = header = (h.substring(1).replaceAll('.', '_') for h in hdr).join(",")
+			output_header = csvheader
+			output += csvheader + "\n"
+		csvrow = values.join(",")
+		output += csvrow + "\n"
+	return output
+
 window.download_database = (dbid) ->
 	db = await new Dexie(dbid).open()
 	table = db.table "events"
 	
 	pad_data = {}
 	
-	console.log "Loading csv", dbid
 	rows = await table.toArray()
 	for ev in rows
-		console.log ev
 		row = stripped_event ev
 
-		[header, row] = flatobj.flatobj row
-		header = (h.substring(1).replaceAll('.', '_') for h in header).join(",")
-		row = row.join(",")
-		
 		pad_id = ev.pad_id
 		if pad_id not of pad_data
-			pad_data[pad_id] =
-				rows: []
-				header: header
-		data = pad_data[pad_id]
+			pad_data[pad_id] = []
 		
-		if header != data.header
-			error "Data header mismatch! Contact Jami!"
-		
-		data.rows.push row
+		pad_data[pad_id].push row
 		
 	if Object.keys(pad_data).length == 0
 		error "No data in this session"
@@ -225,8 +226,9 @@ window.download_database = (dbid) ->
 	output = new JSZip()
 
 	for pad_id, data of pad_data
-		d = header + "\n" + data.rows.join("\n")
-		output.file pad_id + ".csv", d
+		#d = header + "\n" + data.rows.join("\n")
+		csv = objects2csv data
+		output.file pad_id + ".csv", csv
 	content = await output.generateAsync type: "blob", compression: "DEFLATE"
 	saveAs content, "#{dbid}.zip"
 
