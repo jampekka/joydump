@@ -14292,6 +14292,11 @@ _gamepad_viz_els[pad_id] =
         (async function() {
           var database, dumper;
           console.log(session_id);
+          window.addEventListener("beforeunload", function(event) {
+            console.log("beforeunload");
+            event.preventDefault();
+            return false;
+          });
           database = new Dexie2(session_id);
           database.version(1).stores({
             events: "++row"
