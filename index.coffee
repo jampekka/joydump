@@ -271,7 +271,6 @@ update_data_usage = ->
 
 do ->
 	console.log session_id
-
 	# Nag before exit to avoid missing data
 	window.addEventListener "beforeunload", (event) ->
 		console.log "beforeunload"
